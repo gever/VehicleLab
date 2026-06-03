@@ -61,6 +61,11 @@ static bool try_sta_mode(const String& ssid, const String& password) {
 
 void wifi_manager_begin() {
     WiFi.setHostname("vehiclelab");
+    
+    // Disable WiFi power-saving mode (modem sleep) for instant, low-latency responsiveness.
+    // By default, the ESP32 sleeps between beacon intervals, causing unpredictable 100-500ms delays.
+    WiFi.setSleep(false);
+
     load_credentials();
 
     if (s_ssid.length() == 0) {

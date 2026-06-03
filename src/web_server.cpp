@@ -29,8 +29,6 @@ static const char DRIVE_UI[] PROGMEM = R"rawhtml(
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>VehicleLab Controller</title>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
-
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
   :root {
@@ -51,7 +49,7 @@ static const char DRIVE_UI[] PROGMEM = R"rawhtml(
     height: 100%;
     background: var(--bg);
     color: var(--text);
-    font-family: 'Inter', sans-serif;
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -359,7 +357,6 @@ static const char SETTINGS_UI[] PROGMEM = R"rawhtml(
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>VehicleLab – WiFi Settings</title>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   :root {
     --bg:      #0d0f14;
@@ -375,7 +372,7 @@ static const char SETTINGS_UI[] PROGMEM = R"rawhtml(
     min-height: 100vh;
     background: var(--bg);
     color: var(--text);
-    font-family: 'Inter', sans-serif;
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -518,7 +515,6 @@ static const char PREFS_UI[] PROGMEM = R"rawhtml(
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>VehicleLab – Vehicle Preferences</title>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   :root {
     --bg:      #0d0f14;
@@ -536,7 +532,7 @@ static const char PREFS_UI[] PROGMEM = R"rawhtml(
     min-height: 100vh;
     background: var(--bg);
     color: var(--text);
-    font-family: 'Inter', sans-serif;
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -779,6 +775,7 @@ void web_server_begin() {
     // ---- GET /drive/<speed> ------------------------------------------------
     server.on("^/drive/(-?[0-9]+)$", HTTP_GET, [](AsyncWebServerRequest* req) {
         int speed = req->pathArg(0).toInt();
+        Serial.printf("[web] GET /drive/%d\n", speed);
         vehicle_set_speed(speed);
         String body = "{\"speed\":" + String(vehicle_get_speed()) + "}";
         json_ok(req, body);
@@ -787,6 +784,7 @@ void web_server_begin() {
     // ---- GET /turn/<degrees> -----------------------------------------------
     server.on("^/turn/(-?[0-9]+)$", HTTP_GET, [](AsyncWebServerRequest* req) {
         int deg = req->pathArg(0).toInt();
+        Serial.printf("[web] GET /turn/%d\n", deg);
         vehicle_set_turn(deg);
         String body = "{\"turn\":" + String(vehicle_get_turn()) + "}";
         json_ok(req, body);
@@ -794,6 +792,7 @@ void web_server_begin() {
 
     // ---- GET /stop ---------------------------------------------------------
     server.on("/stop", HTTP_GET, [](AsyncWebServerRequest* req) {
+        Serial.println("[web] GET /stop");
         vehicle_stop();
         json_ok(req, "{\"status\":\"stopped\",\"speed\":0,\"turn\":0}");
     });
