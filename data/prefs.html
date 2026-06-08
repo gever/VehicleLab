@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VehicleLab – Vehicle Preferences</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg:      #0d0f14; --surface: #161b26; --border: #2a3040;
+    --accent:  #4f8ef7; --accent2: #8b5cf6;
+    --danger:  #ef4444; --success: #22c55e;
+    --text:    #e4e8f0; --muted:   #6b7a99; --radius: 16px;
+  }
+  body {
+    min-height: 100vh; background: var(--bg); color: var(--text);
+    font-family: system-ui, -apple-system, sans-serif;
+    display: flex; align-items: center; justify-content: center; padding: 24px;
+  }
+  .card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 36px 40px;
+    width: 100%; max-width: 460px; display: flex; flex-direction: column; gap: 28px;
+  }
+  h1 {
+    font-size: 1.3rem; font-weight: 700;
+    background: linear-gradient(135deg, #4f8ef7, #8b5cf6);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+  }
+  fieldset {
+    border: 1px solid var(--border); border-radius: 12px; padding: 20px;
+    display: flex; flex-direction: column; gap: 20px;
+  }
+  legend {
+    font-size: .78rem; font-weight: 600; color: var(--muted);
+    padding: 0 8px; letter-spacing: .06em; text-transform: uppercase;
+  }
+  .slider-row { display: flex; align-items: center; gap: 12px; font-size: .82rem; }
+  .slider-row label { min-width: 84px; font-weight: 600; color: var(--muted); }
+  .slider-row input[type=range] { flex: 1; accent-color: var(--accent); height: 4px; cursor: pointer; }
+  .slider-val { min-width: 44px; text-align: right; font-weight: 700; color: var(--text); }
+  .hint { font-size: .75rem; color: var(--muted); line-height: 1.5; }
+  button {
+    width: 100%; padding: 13px; border-radius: 10px; border: none;
+    font-family: inherit; font-size: .95rem; font-weight: 600; cursor: pointer;
+    background: var(--accent); color: #fff; transition: opacity .2s, transform .1s;
+  }
+  button:active { transform: scale(0.97); }
+  button:disabled { opacity: .4; cursor: default; }
+  .link-row { display: flex; justify-content: center; gap: 28px; }
+  a.nav-link {
+    font-size: .78rem; color: var(--muted); text-decoration: none;
+    border-bottom: 1px dashed var(--border); padding-bottom: 2px; transition: color .2s;
+  }
+  a.nav-link:hover { color: var(--accent); }
+  #toast {
+    position: fixed; bottom: 24px; left: 50%;
+    transform: translateX(-50%) translateY(80px);
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 40px; padding: 10px 24px; font-size: .82rem; color: var(--muted);
+    transition: transform .3s ease, opacity .3s ease; opacity: 0; pointer-events: none;
+  }
+  #toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+</style>
+</head>
+<body>
+<div class="card">
+  <h1>🎮 Vehicle Preferences</h1>
+  <fieldset>
+    <legend>Steering Limits</legend>
+    <div class="slider-row">
+      <label>Min Steer</label>
+      <input type="range" id="steer-min" min="-45" max="0" value="-45" step="1">
+      <div class="slider-val" id="steer-min-val">-45&deg;</div>
+    </div>
+    <div class="slider-row">
+      <label>Max Steer</label>
+      <input type="range" id="steer-max" min="0" max="45" value="45" step="1">
+      <div class="slider-val" id="steer-max-val">45&deg;</div>
+    </div>
+    <p class="hint">Limits how far the steering servo travels. Reduce these for cars with less physical lock-to-lock range. Changes apply immediately – no reboot required.</p>
+  </fieldset>
+  <button id="btn-save">Save Preferences</button>
+  <div class="link-row">
+    <a class="nav-link" href="/drive">&#x2190; Controller</a>
+    <a class="nav-link" href="/settings">⚙ WiFi Settings</a>
+  </div>
+</div>
+<div id="toast"></div>
+<script>
+'use strict';
+const minSlider = document.getElementById('steer-min');
+const maxSlider = document.getElementById('steer-max');
+const minVal    = document.getElementById('steer-min-val');
+const maxVal    = document.getElementById('steer-max-val');
+const btnSave   = document.getElementById('btn-save');
+const toast     = document.getElementById('toast');
+let toastTimer;
+
+// Load current limits from API
+fetch('/api/prefs').then(r => r.json()).then(d => {
+  minSlider.value = d.steer_min;
+  maxSlider.value = d.steer_max;
+  minVal.textContent = d.steer_min + '\u00b0';
+  maxVal.textContent = d.steer_max + '\u00b0';
+}).catch(() => {});
+
+minSlider.addEventListener('input', () => { minVal.textContent = minSlider.value + '\u00b0'; });
+maxSlider.addEventListener('input', () => { maxVal.textContent = maxSlider.value + '\u00b0'; });
+
+function showToast(msg, ok) {
+  toast.textContent = msg;
+  toast.style.borderColor = ok ? 'var(--success)' : 'var(--danger)';
+  toast.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toast.classList.remove('show'), 2000);
+}
+
+btnSave.addEventListener('click', async () => {
+  btnSave.disabled = true;
+  try {
+    const r = await fetch('/prefs', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: 'steer_min=' + minSlider.value + '&steer_max=' + maxSlider.value
+    });
+    const d = await r.json();
+    if (d.ok) showToast('Saved! (' + d.steer_min + '\u00b0 \u2026 +' + d.steer_max + '\u00b0)', true);
+    else showToast('Error: ' + (d.error || 'unknown'), false);
+  } catch { showToast('Request failed', false); }
+  btnSave.disabled = false;
+});
+</script>
+</body>
+</html>

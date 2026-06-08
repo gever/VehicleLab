@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>VehicleLab Controller</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg:      #0d0f14;
+    --surface: #161b26;
+    --border:  #2a3040;
+    --accent:  #4f8ef7;
+    --accent2: #8b5cf6;
+    --danger:  #ef4444;
+    --success: #22c55e;
+    --text:    #e4e8f0;
+    --muted:   #6b7a99;
+  }
+  html, body {
+    height: 100%;
+    background: var(--bg);
+    color: var(--text);
+    font-family: system-ui, -apple-system, sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px;
+    overflow: hidden;
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  /* ── Status bar ── */
+  #status-bar {
+    display: flex;
+    gap: 20px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 40px;
+    padding: 8px 24px;
+    font-size: .85rem;
+    color: var(--muted);
+    width: 100%;
+    justify-content: center;
+  }
+  #status-bar span { color: var(--text); font-weight: 700; }
+
+  /* ── Main controller area ── */
+  #ctrl {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: clamp(16px, 5vw, 48px);
+    flex: 1;
+    width: 100%;
+  }
+
+  /* ── Speed slider (vertical) ── */
+  #speed-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+  }
+  .speed-label {
+    font-size: .7rem;
+    font-weight: 700;
+    color: var(--muted);
+    letter-spacing: .08em;
+  }
+  #speed-track {
+    width: 56px;
+    height: clamp(180px, 36vh, 280px);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 28px;
+    position: relative;
+    touch-action: none;
+    cursor: grab;
+  }
+  #speed-track:active { cursor: grabbing; }
+  #speed-fill {
+    position: absolute;
+    left: 8px;
+    right: 8px;
+    border-radius: 4px;
+    background: var(--accent);
+    opacity: 0.35;
+    transition: top .05s, height .05s;
+  }
+  #speed-thumb {
+    width: 44px;
+    height: 44px;
+    background: var(--accent);
+    border-radius: 50%;
+    position: absolute;
+    left: 6px;
+    top: 50%;
+    transform: translateY(-50%);
+    box-shadow: 0 0 16px rgba(79,142,247,.5);
+    transition: box-shadow .1s;
+  }
+  #speed-thumb.active {
+    box-shadow: 0 0 28px rgba(79,142,247,.8);
+  }
+
+  /* ── Steering wheel ── */
+  #wheel-wrap {
+    touch-action: none;
+    cursor: grab;
+    flex-shrink: 0;
+  }
+  #wheel-wrap:active { cursor: grabbing; }
+  #wheel-svg {
+    display: block;
+    width:  clamp(180px, 44vw, 280px);
+    height: clamp(180px, 44vw, 280px);
+    transition: transform .08s ease-out;
+    filter: drop-shadow(0 0 16px rgba(79,142,247,.3));
+  }
+
+  /* ── Bottom bar ── */
+  #bottom {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    gap: 12px;
+  }
+  #btn-stop {
+    flex: 1;
+    padding: 16px;
+    border-radius: 12px;
+    border: 2px solid var(--danger);
+    background: rgba(239,68,68,.12);
+    color: var(--danger);
+    font-family: inherit;
+    font-size: 1rem;
+    font-weight: 800;
+    letter-spacing: .08em;
+    cursor: pointer;
+    touch-action: none;
+    transition: background .1s, transform .08s;
+  }
+  #btn-stop:active {
+    background: var(--danger);
+    color: #fff;
+    transform: scale(.96);
+  }
+  .nav-links {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    align-items: flex-end;
+  }
+  a.nav-link {
+    font-size: .72rem;
+    color: var(--muted);
+    text-decoration: none;
+    border-bottom: 1px dashed var(--border);
+    padding-bottom: 1px;
+    white-space: nowrap;
+  }
+  a.nav-link:hover { color: var(--accent); }
+
+  /* ── Angle indicator arc (decorative) ── */
+  #angle-label {
+    text-anchor: middle;
+    dominant-baseline: middle;
+    font-size: 18px;
+    font-weight: 700;
+    fill: var(--accent);
+    font-family: system-ui, sans-serif;
+  }
+</style>
+</head>
+<body>
+
+<div id="status-bar">
+  Speed:&nbsp;<span id="stat-speed">0</span>%
+  &nbsp;|&nbsp;
+  Turn:&nbsp;<span id="stat-turn">0</span>&deg;
+</div>
+
+<div id="ctrl">
+
+  <!-- Vertical speed slider -->
+  <div id="speed-wrap">
+    <div class="speed-label">FWD</div>
+    <div id="speed-track">
+      <div id="speed-fill"></div>
+      <div id="speed-thumb"></div>
+    </div>
+    <div class="speed-label">REV</div>
+  </div>
+
+  <!-- Steering wheel -->
+  <div id="wheel-wrap">
+    <svg id="wheel-svg" viewBox="-115 -115 230 230" xmlns="http://www.w3.org/2000/svg">
+      <!-- Outer rim -->
+      <circle r="100" fill="none" stroke="#4f8ef7" stroke-width="14" stroke-linecap="round"/>
+      <!-- Rim grip highlights -->
+      <circle r="100" fill="none" stroke="#8b5cf6" stroke-width="14"
+              stroke-dasharray="30 170" stroke-dashoffset="0" opacity="0.5"/>
+      <!-- Spokes -->
+      <line x1="0" y1="-20" x2="0"   y2="-86" stroke="#4f8ef7" stroke-width="11" stroke-linecap="round"/>
+      <line x1="0" y1=" 12" x2="-74" y2=" 58" stroke="#4f8ef7" stroke-width="11" stroke-linecap="round"/>
+      <line x1="0" y1=" 12" x2=" 74" y2=" 58" stroke="#4f8ef7" stroke-width="11" stroke-linecap="round"/>
+      <!-- Center hub -->
+      <circle r="20" fill="#4f8ef7"/>
+      <circle r="20" fill="none" stroke="#8b5cf6" stroke-width="3"/>
+      <!-- Angle label inside hub -->
+      <text id="angle-label" x="0" y="0">0°</text>
+    </svg>
+  </div>
+
+</div>
+
+<div id="bottom">
+  <button id="btn-stop">⬛ STOP</button>
+  <div class="nav-links">
+    <a class="nav-link" href="/prefs">🎮 Vehicle Prefs</a>
+    <a class="nav-link" href="/settings">⚙ WiFi Settings</a>
+  </div>
+</div>
+
+<script>
+'use strict';
+
+// ── State ──────────────────────────────────────────────────────────────
+let currentSpeed = 0;
+let currentTurn  = 0;
+let steerMin = -45, steerMax = 45;
+
+// ── API helper ─────────────────────────────────────────────────────────
+async function api(url) {
+  try { return await (await fetch(url)).json(); } catch { return null; }
+}
+
+// ── Init: load status + prefs ──────────────────────────────────────────
+async function init() {
+  const [st, pr] = await Promise.all([
+    api('/api/status'),
+    api('/api/prefs')
+  ]);
+  if (st) { currentSpeed = st.speed; currentTurn = st.turn; }
+  if (pr) { steerMin = pr.steer_min; steerMax = pr.steer_max; }
+  updateUI();
+}
+init();
+
+// ── UI update ──────────────────────────────────────────────────────────
+const statSpeed  = document.getElementById('stat-speed');
+const statTurn   = document.getElementById('stat-turn');
+const wheelSvg   = document.getElementById('wheel-svg');
+const angleLabel = document.getElementById('angle-label');
+
+function updateUI() {
+  statSpeed.textContent  = currentSpeed;
+  statTurn.textContent   = currentTurn;
+  wheelSvg.style.transform = `rotate(${currentTurn}deg)`;
+  angleLabel.textContent = currentTurn + '°';
+  updateSpeedThumb();
+}
+
+// ── Steering wheel ─────────────────────────────────────────────────────
+const wheelWrap = document.getElementById('wheel-wrap');
+let wheelDown = false, wheelStartX = 0, wheelStartAngle = 0;
+
+wheelWrap.addEventListener('pointerdown', e => {
+  e.preventDefault();
+  wheelWrap.setPointerCapture(e.pointerId);
+  wheelDown = true;
+  wheelStartX     = e.clientX;
+  wheelStartAngle = currentTurn;
+  wheelSvg.style.transition = 'transform .03s ease-out';
+});
+
+wheelWrap.addEventListener('pointermove', e => {
+  if (!wheelDown) return;
+  e.preventDefault();
+  // Drag across one wheel-radius → 45°
+  const r = wheelWrap.getBoundingClientRect().width / 2;
+  let angle = wheelStartAngle + (e.clientX - wheelStartX) / r * 45;
+  angle = Math.round(Math.max(steerMin, Math.min(steerMax, angle)));
+  if (angle !== currentTurn) {
+    currentTurn = angle;
+    updateUI();
+    api('/turn/' + currentTurn);
+  }
+});
+
+function releaseWheel() {
+  if (!wheelDown) return;
+  wheelDown = false;
+  // Spring back to center
+  wheelSvg.style.transition = 'transform .2s cubic-bezier(.34,1.56,.64,1)';
+  currentTurn = 0;
+  updateUI();
+  api('/turn/0');
+}
+wheelWrap.addEventListener('pointerup',     releaseWheel);
+wheelWrap.addEventListener('pointercancel', releaseWheel);
+
+// ── Speed slider ───────────────────────────────────────────────────────
+const speedTrack = document.getElementById('speed-track');
+const speedThumb = document.getElementById('speed-thumb');
+const speedFill  = document.getElementById('speed-fill');
+let speedDown = false, trackRect = null;
+
+function updateSpeedThumb() {
+  if (!trackRect) trackRect = speedTrack.getBoundingClientRect();
+  const thumbH  = 44;
+  const usable  = speedTrack.clientHeight - thumbH;
+  // currentSpeed: -100 (bottom) … 0 (center) … +100 (top)
+  const pct     = 0.5 - currentSpeed / 200;        // 0=top, 0.5=mid, 1=bot
+  const thumbY  = pct * usable;
+  speedThumb.style.top       = thumbY + 'px';
+  speedThumb.style.transform = 'none';
+
+  // Fill bar between center and thumb
+  const centerY = usable / 2 + thumbH / 2;
+  const thumbMid = thumbY + thumbH / 2;
+  const top    = Math.min(centerY, thumbMid);
+  const height = Math.abs(centerY - thumbMid);
+  speedFill.style.top    = top + 'px';
+  speedFill.style.height = height + 'px';
+
+  // Color: forward = accent, reverse = danger
+  const color = currentSpeed >= 0 ? 'var(--accent)' : 'var(--danger)';
+  speedThumb.style.background = color;
+  speedFill.style.background  = color;
+}
+
+function snapSpeedToCenter() {
+  speedThumb.style.transition = 'top .2s cubic-bezier(.34,1.56,.64,1)';
+  speedFill.style.transition  = 'top .2s, height .2s';
+  currentSpeed = 0;
+  updateUI();
+  api('/drive/0');
+  // Clear transition after animation
+  setTimeout(() => {
+    speedThumb.style.transition = '';
+    speedFill.style.transition  = '';
+  }, 250);
+}
+
+speedTrack.addEventListener('pointerdown', e => {
+  e.preventDefault();
+  speedTrack.setPointerCapture(e.pointerId);
+  trackRect = speedTrack.getBoundingClientRect();
+  speedDown = true;
+  speedThumb.classList.add('active');
+  speedThumb.style.transition = '';
+  handleSpeedMove(e);
+});
+
+speedTrack.addEventListener('pointermove', e => {
+  if (!speedDown) return;
+  e.preventDefault();
+  handleSpeedMove(e);
+});
+
+function handleSpeedMove(e) {
+  const thumbH  = 44;
+  const usable  = trackRect.height - thumbH;
+  const relY    = e.clientY - trackRect.top - thumbH / 2;
+  const pct     = Math.max(0, Math.min(1, relY / usable));
+  const speed   = Math.round((0.5 - pct) * 200);
+  const clamped = Math.max(-100, Math.min(100, speed));
+  if (clamped !== currentSpeed) {
+    currentSpeed = clamped;
+    updateUI();
+    api('/drive/' + currentSpeed);
+  }
+}
+
+function releaseSpeed() {
+  if (!speedDown) return;
+  speedDown = false;
+  speedThumb.classList.remove('active');
+  snapSpeedToCenter();
+}
+speedTrack.addEventListener('pointerup',     releaseSpeed);
+speedTrack.addEventListener('pointercancel', releaseSpeed);
+
+// ── STOP button ────────────────────────────────────────────────────────
+document.getElementById('btn-stop').addEventListener('pointerdown', async e => {
+  e.preventDefault();
+  currentSpeed = 0;
+  currentTurn  = 0;
+  wheelSvg.style.transition = 'transform .2s cubic-bezier(.34,1.56,.64,1)';
+  updateUI();
+  snapSpeedToCenter();
+  api('/stop');
+});
+</script>
+</body>
+</html>

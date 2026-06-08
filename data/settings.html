@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VehicleLab – WiFi Settings</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg:      #0d0f14; --surface: #161b26; --border: #2a3040;
+    --accent:  #4f8ef7; --danger:  #ef4444;
+    --text:    #e4e8f0; --muted:   #6b7a99; --radius: 16px;
+  }
+  body {
+    min-height: 100vh; background: var(--bg); color: var(--text);
+    font-family: system-ui, -apple-system, sans-serif;
+    display: flex; align-items: center; justify-content: center; padding: 24px;
+  }
+  .card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 36px 40px;
+    width: 100%; max-width: 440px; display: flex; flex-direction: column; gap: 28px;
+  }
+  h1 {
+    font-size: 1.3rem; font-weight: 700;
+    background: linear-gradient(135deg, #4f8ef7, #8b5cf6);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+  }
+  .info-row {
+    display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px;
+    font-size: .82rem; color: var(--muted);
+    border-bottom: 1px solid var(--border); padding-bottom: 16px;
+  }
+  .info-row span { color: var(--text); font-weight: 600; }
+  fieldset {
+    border: 1px solid var(--border); border-radius: 12px; padding: 20px;
+    display: flex; flex-direction: column; gap: 16px;
+  }
+  legend {
+    font-size: .78rem; font-weight: 600; color: var(--muted);
+    padding: 0 8px; letter-spacing: .06em; text-transform: uppercase;
+  }
+  label { display: flex; flex-direction: column; gap: 6px; font-size: .82rem; color: var(--muted); font-weight: 600; }
+  input[type=text], input[type=password] {
+    background: var(--bg); border: 1px solid var(--border); border-radius: 10px;
+    padding: 10px 14px; color: var(--text); font-family: inherit; font-size: .92rem;
+    outline: none; transition: border-color .2s;
+  }
+  input:focus { border-color: var(--accent); }
+  .btn-row { display: flex; gap: 12px; }
+  button {
+    flex: 1; padding: 12px; border-radius: 10px; border: none;
+    font-family: inherit; font-size: .9rem; font-weight: 600; cursor: pointer;
+    transition: opacity .2s, transform .1s;
+  }
+  button:active { transform: scale(0.97); }
+  .btn-save  { background: var(--accent); color: #fff; }
+  .btn-clear { background: rgba(239,68,68,.15); border: 1px solid var(--danger); color: var(--danger); }
+  .back-link {
+    font-size: .78rem; color: var(--muted); text-decoration: none; text-align: center;
+    border-bottom: 1px dashed var(--border); padding-bottom: 2px;
+    align-self: center; transition: color .2s;
+  }
+  .back-link:hover { color: var(--accent); }
+</style>
+</head>
+<body>
+<div class="card">
+  <h1>⚙ WiFi Settings</h1>
+  <div class="info-row">
+    <div>Mode: <span id="info-mode">…</span></div>
+    <div>SSID: <span id="info-ssid">…</span></div>
+    <div>IP: <span id="info-ip">…</span></div>
+  </div>
+  <form method="POST" action="/settings">
+    <fieldset>
+      <legend>Network Credentials</legend>
+      <label>SSID <input type="text" name="ssid" placeholder="Your WiFi network name" autocomplete="off" spellcheck="false"></label>
+      <label>Password <input type="password" name="password" placeholder="Password" autocomplete="off"></label>
+      <div class="btn-row">
+        <button type="submit" class="btn-save">Save &amp; Reboot</button>
+        <button type="submit" formaction="/settings/clear" class="btn-clear">Reset to AP</button>
+      </div>
+    </fieldset>
+  </form>
+  <a class="back-link" href="/drive">&#x2190; Back to Controller</a>
+</div>
+<script>
+fetch('/api/status').then(r => r.json()).then(d => {
+  document.getElementById('info-mode').textContent = d.mode;
+  document.getElementById('info-ssid').textContent = d.ssid;
+  document.getElementById('info-ip').textContent   = d.ip;
+}).catch(() => {});
+</script>
+</body>
+</html>
